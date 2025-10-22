@@ -7,9 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Libraries for PDF Download -->
+    <!-- Library for Image Download -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -115,37 +114,13 @@
             background-color: #374151;
             cursor: not-allowed;
         }
-
-        /* --- STYLES FOR THE CLONED PDF ELEMENT (WHEN .pdf-mode IS APPLIED) --- */
-        .receipt.pdf-mode {
-            background-color: white !important;
-            color: black !important;
-            box-shadow: none !important;
-            border: none !important;
-            backdrop-filter: none !important;
-            -webkit-backdrop-filter: none !important;
-            padding: 40px !important; /* Add padding for PDF margins */
-            width: 700px !important; /* Set a fixed width for consistent PDF output */
-            max-width: 700px !important;
-        }
-        .receipt.pdf-mode .header { border-color: #ddd !important; }
-        .receipt.pdf-mode .header h1 {
-            background: none !important;
-            -webkit-text-fill-color: initial !important;
-            color: black !important;
-        }
-        .receipt.pdf-mode .header p { color: #555 !important; }
-        .receipt.pdf-mode .details-row strong { color: #555 !important; }
-        .receipt.pdf-mode .details-row span { color: #000 !important; font-weight: bold !important; }
-        .receipt.pdf-mode .total { border-color: #000 !important; color: #000 !important; }
-        .receipt.pdf-mode .actions { display: none !important; } /* Hide the download button */
-
     </style>
 </head>
 <body>
     <div class="receipt" id="receipt-container">
         <div id="receipt-content" style="display: none;">
-            <div>
+            <!-- This div is the main content for both display and screenshot -->
+            <div id="receipt-body">
                 <div class="header">
                     <h1>PrintEase</h1>
                     <p>Official Order Receipt</p>
@@ -177,49 +152,43 @@
         document.addEventListener('DOMContentLoaded', () => {
             let orderData = null;
             const downloadButton = document.getElementById('download-button');
+            const actionsDiv = document.querySelector('.actions');
 
-            // --- REVISED PDF DOWNLOAD LOGIC ---
+            // --- REVISED IMAGE DOWNLOAD LOGIC ---
             downloadButton.addEventListener('click', async () => {
                 const downloadBtnSpan = downloadButton.querySelector('span');
-                const receiptContainer = document.getElementById('receipt-container');
+                const receiptBody = document.getElementById('receipt-body');
 
-                if (!orderData || !window.html2canvas || !window.jspdf) return;
+                if (!orderData || !window.html2canvas) return;
 
                 downloadButton.disabled = true;
-                downloadBtnSpan.textContent = 'Generating PDF...';
-
-                // Temporarily apply print-friendly styles
-                receiptContainer.classList.add('pdf-mode');
+                downloadBtnSpan.textContent = 'Generating Image...';
+                actionsDiv.style.display = 'none'; // Hide the button's container
 
                 try {
-                    const canvas = await html2canvas(receiptContainer, {
-                        scale: 2, // Higher resolution
+                    const canvas = await html2canvas(receiptBody, {
+                        scale: 3, // Higher resolution for better quality
                         useCORS: true,
-                        backgroundColor: '#ffffff' // Ensure background is white
+                        backgroundColor: null // Use the element's actual background
                     });
                     
-                    const imgData = canvas.toDataURL('image/png');
-                    const { jsPDF } = window.jspdf;
+                    const imageData = canvas.toDataURL('image/png');
                     
-                    const pdf = new jsPDF({
-                        orientation: 'portrait',
-                        unit: 'mm',
-                        format: 'a4'
-                    });
-
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                    
-                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                    pdf.save(`PrintEase-Receipt-${orderData.orderId.slice(-6)}.pdf`);
+                    // Create a temporary link to trigger the download
+                    const link = document.createElement('a');
+                    link.href = imageData;
+                    link.download = `PrintEase-Receipt-${orderData.orderId.slice(-6)}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
 
                     downloadBtnSpan.textContent = 'Downloaded!';
                 } catch (err) {
-                    console.error("PDF generation failed:", err);
+                    console.error("Image generation failed:", err);
                     downloadBtnSpan.textContent = 'Download Failed';
                 } finally {
-                    // ALWAYS remove the print styles after we are done
-                    receiptContainer.classList.remove('pdf-mode');
+                    // ALWAYS show the button's container again
+                    actionsDiv.style.display = 'block';
 
                     setTimeout(() => {
                         downloadButton.disabled = false;
@@ -227,6 +196,7 @@
                     }, 2000);
                 }
             });
+
 
             // --- Main Data Fetching Logic ---
             const params = new URLSearchParams(window.location.search);
