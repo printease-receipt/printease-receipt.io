@@ -7,8 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Libraries for PDF Download -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- jsPDF Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body {
@@ -87,7 +86,6 @@
         }
         #error strong { color: white; }
 
-        /* Download Button Styles */
         .actions {
             margin-top: 24px;
             padding-top: 24px;
@@ -122,7 +120,8 @@
 
     <div class="receipt" id="receipt-container">
         <div id="receipt-content" style="display: none;">
-            <div id="receipt-to-print">
+            <!-- This div is for screen display only -->
+            <div>
                 <div class="header">
                     <h1>PrintEase</h1>
                     <p>Official Order Receipt</p>
@@ -172,49 +171,79 @@
             const API_BASE_URL = "https://worried-laurel-unmeasurably.ngrok-free.dev"; 
             const API_URL = `${API_BASE_URL}/api/receipt/by-token/${token}`;
 
-            // --- PDF Download Logic ---
+            // --- REVISED PDF DOWNLOAD LOGIC ---
             downloadButton.addEventListener('click', () => {
-                const receiptElement = document.getElementById('receipt-to-print');
                 const downloadBtnSpan = downloadButton.querySelector('span');
+                if (!orderData || !window.jspdf) return;
 
-                if (receiptElement && window.html2canvas && window.jspdf) {
-                    downloadButton.disabled = true;
-                    downloadBtnSpan.textContent = 'Generating PDF...';
+                downloadButton.disabled = true;
+                downloadBtnSpan.textContent = 'Generating PDF...';
 
-                    setTimeout(() => { // Give a moment for UI to update
-                        html2canvas(receiptElement, {
-                            backgroundColor: '#111827', // Match dark theme
-                            scale: 2 
-                        }).then(canvas => {
-                            const imgData = canvas.toDataURL('image/png');
-                            const { jsPDF } = window.jspdf;
-                            const pdfWidth = 210; 
-                            const imgWidth = canvas.width;
-                            const imgHeight = canvas.height;
-                            const aspectRatio = imgHeight / imgWidth;
-                            const pdfHeight = pdfWidth * aspectRatio;
-                            const pdf = new jsPDF('p', 'mm', 'a4');
-                            
-                            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                            pdf.save(`PrintEase-Receipt-${orderData?.orderId?.slice(-6) || 'Order'}.pdf`);
-                            
-                            downloadBtnSpan.textContent = 'Downloaded!';
-                            setTimeout(() => {
-                                downloadButton.disabled = false;
-                                downloadBtnSpan.textContent = 'Download Receipt';
-                            }, 2000);
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF();
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const margin = 15;
+                    let y = 20;
 
-                        }).catch(err => {
-                            console.error("PDF generation failed:", err);
-                            downloadBtnSpan.textContent = 'Download Failed';
-                            setTimeout(() => {
-                                downloadButton.disabled = false;
-                                downloadBtnSpan.textContent = 'Download Receipt';
-                            }, 3000);
-                        });
-                    }, 100);
+                    // --- PDF STYLING AND CONTENT ---
+                    pdf.setFont("helvetica", "bold");
+                    pdf.setFontSize(22);
+                    pdf.text("PrintEase", pageWidth / 2, y, { align: "center" });
+                    y += 8;
+                    
+                    pdf.setFont("helvetica", "normal");
+                    pdf.setFontSize(12);
+                    pdf.text("Official Order Receipt", pageWidth / 2, y, { align: "center" });
+                    y += 12;
+
+                    pdf.setLineWidth(0.2);
+                    pdf.line(margin, y, pageWidth - margin, y);
+                    y += 10;
+                    
+                    pdf.setFontSize(11);
+                    const addLineItem = (label, value) => {
+                        pdf.setFont("helvetica", "bold");
+                        pdf.text(label, margin, y);
+                        pdf.setFont("helvetica", "normal");
+                        pdf.text(String(value), pageWidth - margin, y, { align: "right" });
+                        y += 7;
+                    };
+
+                    addLineItem("Order ID:", '#' + orderData.orderId.slice(-6).toUpperCase());
+                    addLineItem("Item:", orderData.itemName);
+                    addLineItem("Quantity:", orderData.quantity);
+                    addLineItem("Date:", document.getElementById('order-date').textContent);
+                    addLineItem("Status:", orderData.status.charAt(0).toUpperCase() + orderData.status.slice(1));
+                    addLineItem("Payment:", orderData.modeOfPayment || 'N/A');
+                    y += 5;
+                    
+                    pdf.line(margin, y, pageWidth - margin, y);
+                    y += 10;
+                    
+                    pdf.setFont("helvetica", "bold");
+                    pdf.setFontSize(14);
+                    pdf.text("Total Price", margin, y);
+                    pdf.text(document.getElementById('total-price').textContent, pageWidth - margin, y, { align: "right" });
+                    
+                    pdf.save(`PrintEase-Receipt-${orderData.orderId.slice(-6)}.pdf`);
+                    
+                    downloadBtnSpan.textContent = 'Downloaded!';
+                    setTimeout(() => {
+                        downloadButton.disabled = false;
+                        downloadBtnSpan.textContent = 'Download Receipt';
+                    }, 2000);
+
+                } catch (err) {
+                    console.error("PDF generation failed:", err);
+                    downloadBtnSpan.textContent = 'Download Failed';
+                     setTimeout(() => {
+                        downloadButton.disabled = false;
+                        downloadBtnSpan.textContent = 'Download Receipt';
+                    }, 3000);
                 }
             });
+
 
             // --- Main Data Fetching Logic ---
             fetch(API_URL, { headers: { 'ngrok-skip-browser-warning': 'true' } })
