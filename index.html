@@ -116,30 +116,29 @@
             cursor: not-allowed;
         }
 
-        /* --- STYLES FOR HIDDEN PDF ELEMENT --- */
-        #pdf-render-target {
-            position: absolute;
-            left: -9999px; /* Position off-screen */
-            top: auto;
-            width: 800px; /* Wider for better PDF quality */
-            background-color: white;
-            color: black;
-            padding: 40px;
-            font-family: 'Inter', sans-serif;
+        /* --- STYLES FOR THE CLONED PDF ELEMENT (WHEN .pdf-mode IS APPLIED) --- */
+        .receipt.pdf-mode {
+            background-color: white !important;
+            color: black !important;
+            box-shadow: none !important;
+            border: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            padding: 40px !important; /* Add padding for PDF margins */
+            width: 700px !important; /* Set a fixed width for consistent PDF output */
+            max-width: 700px !important;
         }
-        #pdf-render-target .header { border-color: #eee; }
-        #pdf-render-target .header h1 {
-            background: none;
-            -webkit-text-fill-color: initial;
-            color: black;
-            font-size: 36px;
+        .receipt.pdf-mode .header { border-color: #ddd !important; }
+        .receipt.pdf-mode .header h1 {
+            background: none !important;
+            -webkit-text-fill-color: initial !important;
+            color: black !important;
         }
-        #pdf-render-target .header p { color: #555; font-size: 16px; }
-        #pdf-render-target .details-row strong { color: #555; }
-        #pdf-render-target .details-row span { color: #111; font-weight: bold; }
-        #pdf-render-target .total { border-color: #111; color: #111; }
-        #pdf-render-target .details-row,
-        #pdf-render-target .total .details-row { font-size: 16px; }
+        .receipt.pdf-mode .header p { color: #555 !important; }
+        .receipt.pdf-mode .details-row strong { color: #555 !important; }
+        .receipt.pdf-mode .details-row span { color: #000 !important; font-weight: bold !important; }
+        .receipt.pdf-mode .total { border-color: #000 !important; color: #000 !important; }
+        .receipt.pdf-mode .actions { display: none !important; } /* Hide the download button */
 
     </style>
 </head>
@@ -173,26 +172,6 @@
         <div id="loading">Loading order details...</div>
         <div id="error" style="display: none;"></div>
     </div>
-    
-    <!-- --- HIDDEN DIV FOR PDF GENERATION --- -->
-    <div id="pdf-render-target" aria-hidden="true">
-        <div class="header">
-            <h1>PrintEase</h1>
-            <p>Official Order Receipt</p>
-        </div>
-        <div class="details">
-            <div class="details-row"><strong>Order ID:</strong><span id="pdf-order-id"></span></div>
-            <div class="details-row"><strong>Item:</strong><span id="pdf-item-name"></span></div>
-            <div class="details-row"><strong>Quantity:</strong><span id="pdf-quantity"></span></div>
-            <div class="details-row"><strong>Date:</strong><span id="pdf-order-date"></span></div>
-            <div class="details-row"><strong>Status:</strong><span id="pdf-status"></span></div>
-            <div class="details-row"><strong>Payment:</strong><span id="pdf-payment-mode"></span></div>
-        </div>
-        <div class="details total">
-            <div class="details-row"><span>Total Price</span><span id="pdf-total-price"></span></div>
-        </div>
-    </div>
-
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -200,42 +179,53 @@
             const downloadButton = document.getElementById('download-button');
 
             // --- REVISED PDF DOWNLOAD LOGIC ---
-            downloadButton.addEventListener('click', () => {
+            downloadButton.addEventListener('click', async () => {
                 const downloadBtnSpan = downloadButton.querySelector('span');
-                const pdfElement = document.getElementById('pdf-render-target');
+                const receiptContainer = document.getElementById('receipt-container');
 
                 if (!orderData || !window.html2canvas || !window.jspdf) return;
 
                 downloadButton.disabled = true;
                 downloadBtnSpan.textContent = 'Generating PDF...';
 
-                html2canvas(pdfElement, { scale: 3 }).then(canvas => {
+                // Temporarily apply print-friendly styles
+                receiptContainer.classList.add('pdf-mode');
+
+                try {
+                    const canvas = await html2canvas(receiptContainer, {
+                        scale: 2, // Higher resolution
+                        useCORS: true,
+                        backgroundColor: '#ffffff' // Ensure background is white
+                    });
+                    
                     const imgData = canvas.toDataURL('image/png');
                     const { jsPDF } = window.jspdf;
                     
                     const pdf = new jsPDF({
                         orientation: 'portrait',
-                        unit: 'px',
-                        format: [canvas.width, canvas.height]
+                        unit: 'mm',
+                        format: 'a4'
                     });
 
-                    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-                    pdf.save(`PrintEase-Receipt-${orderData.orderId.slice(-6)}.pdf`);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
                     
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`PrintEase-Receipt-${orderData.orderId.slice(-6)}.pdf`);
+
                     downloadBtnSpan.textContent = 'Downloaded!';
+                } catch (err) {
+                    console.error("PDF generation failed:", err);
+                    downloadBtnSpan.textContent = 'Download Failed';
+                } finally {
+                    // ALWAYS remove the print styles after we are done
+                    receiptContainer.classList.remove('pdf-mode');
+
                     setTimeout(() => {
                         downloadButton.disabled = false;
                         downloadBtnSpan.textContent = 'Download Receipt';
                     }, 2000);
-
-                }).catch(err => {
-                    console.error("PDF generation failed:", err);
-                    downloadBtnSpan.textContent = 'Download Failed';
-                     setTimeout(() => {
-                        downloadButton.disabled = false;
-                        downloadBtnSpan.textContent = 'Download Receipt';
-                    }, 3000);
-                });
+                }
             });
 
             // --- Main Data Fetching Logic ---
@@ -263,7 +253,6 @@
             .then(data => {
                 orderData = data; 
                 
-                // Populate visible receipt
                 document.getElementById('order-id').textContent = '#' + data.orderId.slice(-6).toUpperCase();
                 document.getElementById('item-name').textContent = data.itemName;
                 document.getElementById('quantity').textContent = data.quantity;
@@ -280,15 +269,6 @@
                     } catch (e) { formattedDate = data.orderDate.split('T')[0]; }
                 }
                 document.getElementById('order-date').textContent = formattedDate;
-
-                // Populate HIDDEN PDF receipt
-                document.getElementById('pdf-order-id').textContent = '#' + data.orderId.slice(-6).toUpperCase();
-                document.getElementById('pdf-item-name').textContent = data.itemName;
-                document.getElementById('pdf-quantity').textContent = data.quantity;
-                document.getElementById('pdf-status').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-                document.getElementById('pdf-payment-mode').textContent = data.modeOfPayment || 'N/A';
-                document.getElementById('pdf-total-price').textContent = formattedPrice;
-                document.getElementById('pdf-order-date').textContent = formattedDate;
 
                 loadingEl.style.display = 'none';
                 receiptContentEl.style.display = 'block';
