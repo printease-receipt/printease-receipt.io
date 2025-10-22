@@ -114,13 +114,61 @@
             background-color: #374151;
             cursor: not-allowed;
         }
+        
+        /* --- STYLES FOR HIDDEN, LONG PAPER RECEIPT --- */
+        #paper-receipt {
+            position: absolute;
+            left: -9999px; /* Position off-screen */
+            top: auto;
+            width: 300px; /* Standard thermal printer width */
+            background: #fff;
+            color: #000;
+            padding: 20px 15px;
+            font-family: 'Courier New', monospace;
+        }
+        #paper-receipt .paper-header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        #paper-receipt .paper-header h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        #paper-receipt .paper-header p {
+            margin: 2px 0;
+            font-size: 12px;
+        }
+        #paper-receipt .paper-line {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+        }
+        #paper-receipt .paper-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        #paper-receipt .paper-row-left { text-align: left; }
+        #paper-receipt .paper-row-right { text-align: right; font-weight: bold; }
+        #paper-receipt .paper-items-header .paper-row-left,
+        #paper-receipt .paper-items-header .paper-row-right { font-weight: bold; }
+        #paper-receipt .paper-total .paper-row-left,
+        #paper-receipt .paper-total .paper-row-right {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        #paper-receipt .paper-footer {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <div class="receipt" id="receipt-container">
         <div id="receipt-content" style="display: none;">
-            <!-- This div contains everything that will be in the screenshot -->
-            <div id="receipt-body">
+            <div>
                 <div class="header">
                     <h1>PrintEase</h1>
                     <p>Official Order Receipt</p>
@@ -147,32 +195,62 @@
         <div id="loading">Loading order details...</div>
         <div id="error" style="display: none;"></div>
     </div>
+    
+    <!-- --- HIDDEN DIV FOR LONG PAPER PNG GENERATION --- -->
+    <div id="paper-receipt" aria-hidden="true">
+        <div class="paper-header">
+            <h2>PrintEase</h2>
+            <p>123 Code Street, Quezon City</p>
+            <p id="paper-date"></p>
+        </div>
+        <div class="paper-line"></div>
+        <div class="paper-row">
+            <span class="paper-row-left">Order ID:</span>
+            <span class="paper-row-right" id="paper-order-id"></span>
+        </div>
+        <div class="paper-row">
+            <span class="paper-row-left">Payment Method:</span>
+            <span class="paper-row-right" id="paper-payment-mode"></span>
+        </div>
+        <div class="paper-line"></div>
+        <div class="paper-row paper-items-header">
+            <span class="paper-row-left">Item</span>
+            <span class="paper-row-right">Amount</span>
+        </div>
+        <div class="paper-row">
+            <span class="paper-row-left" id="paper-item-name"></span>
+            <span class="paper-row-right" id="paper-item-total"></span>
+        </div>
+        <div class="paper-row">
+             <span class="paper-row-left" id="paper-item-qty-price"></span>
+        </div>
+        <div class="paper-line"></div>
+        <div class="paper-row paper-total">
+            <span class="paper-row-left">TOTAL</span>
+            <span class="paper-row-right" id="paper-total-price"></span>
+        </div>
+        <div class="paper-footer">
+            <p>Thank you for your business!</p>
+        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             let orderData = null;
-            
             const downloadButton = document.getElementById('download-button');
-            const actionsContainer = document.querySelector('.actions');
-
+            
             // --- REVISED PNG DOWNLOAD LOGIC ---
             downloadButton.addEventListener('click', async () => {
                 const downloadBtnSpan = downloadButton.querySelector('span');
-                const receiptToCapture = document.getElementById('receipt-container');
+                const receiptToCapture = document.getElementById('paper-receipt');
 
                 if (!orderData || !window.html2canvas) return;
 
                 downloadButton.disabled = true;
                 downloadBtnSpan.textContent = 'Generating Image...';
-                actionsContainer.style.display = 'none'; // Hide the button's container
 
                 try {
-                    const canvas = await html2canvas(receiptToCapture, {
-                        scale: 3, // Higher resolution for better quality
-                        useCORS: true,
-                        backgroundColor: null // Capture the actual background
-                    });
-                    
+                    const canvas = await html2canvas(receiptToCapture, { scale: 3 });
                     const imageData = canvas.toDataURL('image/png');
                     
                     const link = document.createElement('a');
@@ -187,9 +265,6 @@
                     console.error("Image generation failed:", err);
                     downloadBtnSpan.textContent = 'Download Failed';
                 } finally {
-                    // ALWAYS show the button's container again
-                    actionsContainer.style.display = 'block';
-
                     setTimeout(() => {
                         downloadButton.disabled = false;
                         downloadBtnSpan.textContent = 'Download Receipt';
@@ -221,24 +296,33 @@
             })
             .then(data => {
                 orderData = data; 
-                
-                document.getElementById('order-id').textContent = '#' + data.orderId.slice(-6).toUpperCase();
-                document.getElementById('item-name').textContent = data.itemName;
-                document.getElementById('quantity').textContent = data.quantity;
-                document.getElementById('status').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-                document.getElementById('payment-mode').textContent = data.modeOfPayment || 'N/A';
-                
                 const formattedPrice = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(data.totalPrice);
-                document.getElementById('total-price').textContent = formattedPrice;
-
                 let formattedDate = 'N/A';
                 if (data.orderDate) {
                     try {
                         formattedDate = new Date(data.orderDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                     } catch (e) { formattedDate = data.orderDate.split('T')[0]; }
                 }
+                
+                // --- Populate VISIBLE receipt ---
+                document.getElementById('order-id').textContent = '#' + data.orderId.slice(-6).toUpperCase();
+                document.getElementById('item-name').textContent = data.itemName;
+                document.getElementById('quantity').textContent = data.quantity;
+                document.getElementById('status').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                document.getElementById('payment-mode').textContent = data.modeOfPayment || 'N/A';
+                document.getElementById('total-price').textContent = formattedPrice;
                 document.getElementById('order-date').textContent = formattedDate;
 
+                // --- Populate HIDDEN paper receipt ---
+                document.getElementById('paper-order-id').textContent = '#' + data.orderId.slice(-6).toUpperCase();
+                document.getElementById('paper-date').textContent = new Date(data.orderDate).toLocaleString('en-US');
+                document.getElementById('paper-payment-mode').textContent = data.modeOfPayment || 'N/A';
+                document.getElementById('paper-item-name').textContent = data.itemName;
+                document.getElementById('paper-item-total').textContent = formattedPrice;
+                const unitPriceFormatted = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(data.totalPrice / data.quantity);
+                document.getElementById('paper-item-qty-price').textContent = `${data.quantity} x ${unitPriceFormatted}`;
+                document.getElementById('paper-total-price').textContent = formattedPrice;
+                
                 loadingEl.style.display = 'none';
                 receiptContentEl.style.display = 'block';
             })
@@ -246,7 +330,7 @@
                 console.error('Failed to fetch receipt:', err);
                 loadingEl.style.display = 'none';
                 let errorMessage = `<strong>Error:</strong><br>${err.message}`;
-                if (err.message.includes('Failed to fetch')) errorMessage += '<br><br>This could be a CORS or network issue. Check the ngrok and server terminals.';
+                if (err.message.includes('Failed to fetch')) errorMessage += '<br><br>This is a CORS or network issue. Check the ngrok and server terminals.';
                 errorEl.innerHTML = errorMessage;
                 errorEl.style.display = 'block';
             });
