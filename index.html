@@ -230,7 +230,7 @@
             <span class="paper-row-right" id="paper-total-price"></span>
         </div>
         <div class="paper-footer">
-            <p>@ JC Designs and Prints</p>
+            <p>@JC Designs and Prints</p>
         </div>
     </div>
 
@@ -307,7 +307,15 @@
                         // For on-screen display
                         onScreenDate = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                         // For paper receipt (Philippines Time)
-                        paperDate = dateObj.toLocaleString('en-US', { timeZone: 'Asia/Manila' });
+                        paperDate = dateObj.toLocaleString('en-US', { 
+                            timeZone: 'Asia/Manila',
+                            year: 'numeric',
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                        });
                     } catch (e) { 
                         onScreenDate = data.orderDate.split('T')[0];
                         paperDate = data.orderDate.split('T')[0];
@@ -348,3 +356,4 @@
     </script>
 </body>
 </html>
+
