@@ -7,8 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Library for Image Download -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- jsPDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -29,20 +29,20 @@
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             width: 100%;
-            max-width: 420px;
-            padding: 32px;
+            max-width: 400px; /* Made slightly smaller */
+            padding: 28px;
             box-sizing: border-box;
             position: relative;
         }
         .header {
             text-align: center;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 20px;
-            margin-bottom: 24px;
+            padding-bottom: 16px;
+            margin-bottom: 20px;
         }
         .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 32px;
+            margin: 0 0 4px 0;
+            font-size: 28px; /* Smaller font */
             font-weight: 700;
             letter-spacing: 0.5px;
             background: -webkit-linear-gradient(45deg, #a5b4fc, #60a5fa);
@@ -51,14 +51,14 @@
         }
         .header p {
             margin: 0;
-            font-size: 14px;
+            font-size: 13px; /* Smaller font */
             color: #9ca3af;
         }
         .details-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 16px;
-            font-size: 15px;
+            margin-bottom: 14px; /* Tighter spacing */
+            font-size: 14px; /* Smaller font */
         }
         .details-row strong {
             color: #9ca3af;
@@ -71,9 +71,9 @@
         }
         .total {
             border-top: 2px solid #3b82f6;
-            padding-top: 20px;
+            padding-top: 16px;
             margin-top: 8px;
-            font-size: 20px;
+            font-size: 18px; /* Smaller font */
             font-weight: 700;
             color: #ffffff;
         }
@@ -87,14 +87,14 @@
         #error strong { color: white; }
 
         .actions {
-            margin-top: 24px;
-            padding-top: 24px;
+            margin-top: 20px;
+            padding-top: 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
         .download-btn {
             width: 100%;
             padding: 12px;
-            font-size: 16px;
+            font-size: 15px; /* Smaller font */
             font-weight: 600;
             color: white;
             background-color: #2563eb;
@@ -119,8 +119,7 @@
 <body>
     <div class="receipt" id="receipt-container">
         <div id="receipt-content" style="display: none;">
-            <!-- This div is the main content for both display and screenshot -->
-            <div id="receipt-body">
+            <div>
                 <div class="header">
                     <h1>PrintEase</h1>
                     <p>Official Order Receipt</p>
@@ -151,52 +150,102 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             let orderData = null;
+            
             const downloadButton = document.getElementById('download-button');
-            const actionsDiv = document.querySelector('.actions');
 
-            // --- REVISED IMAGE DOWNLOAD LOGIC ---
-            downloadButton.addEventListener('click', async () => {
+            // --- REVISED PROFESSIONAL PDF DOWNLOAD LOGIC ---
+            downloadButton.addEventListener('click', () => {
                 const downloadBtnSpan = downloadButton.querySelector('span');
-                const receiptBody = document.getElementById('receipt-body');
-
-                if (!orderData || !window.html2canvas) return;
+                if (!orderData || !window.jspdf) return;
 
                 downloadButton.disabled = true;
-                downloadBtnSpan.textContent = 'Generating Image...';
-                actionsDiv.style.display = 'none'; // Hide the button's container
+                downloadBtnSpan.textContent = 'Generating PDF...';
 
                 try {
-                    const canvas = await html2canvas(receiptBody, {
-                        scale: 3, // Higher resolution for better quality
-                        useCORS: true,
-                        backgroundColor: null // Use the element's actual background
-                    });
-                    
-                    const imageData = canvas.toDataURL('image/png');
-                    
-                    // Create a temporary link to trigger the download
-                    const link = document.createElement('a');
-                    link.href = imageData;
-                    link.download = `PrintEase-Receipt-${orderData.orderId.slice(-6)}.png`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({ unit: 'mm', format: [80, 150] }); // Standard receipt paper width
+                    const pageWidth = 80;
+                    const margin = 5;
+                    let y = 10;
+                    const center = pageWidth / 2;
 
+                    // --- PDF Content & Styling ---
+                    pdf.setFont("helvetica", "bold");
+                    pdf.setFontSize(14);
+                    pdf.text("PrintEase", center, y, { align: "center" });
+                    y += 6;
+                    
+                    pdf.setFont("helvetica", "normal");
+                    pdf.setFontSize(8);
+                    pdf.text("Official Order Receipt", center, y, { align: "center" });
+                    y += 4;
+                    pdf.text("123 Code Street, Quezon City", center, y, { align: "center" });
+                    y += 10;
+
+                    const addLine = (left, right) => {
+                        pdf.text(left, margin, y);
+                        pdf.text(right, pageWidth - margin, y, { align: "right" });
+                        y += 5;
+                    };
+                    
+                    const addDashedLine = () => {
+                        pdf.setLineDashPattern([1, 1], 0);
+                        pdf.line(margin, y, pageWidth - margin, y);
+                        pdf.setLineDashPattern([], 0);
+                        y += 5;
+                    };
+
+                    addDashedLine();
+                    addLine("Order ID:", '#' + orderData.orderId.slice(-6).toUpperCase());
+                    addLine("Date:", document.getElementById('order-date').textContent);
+                    addDashedLine();
+                    
+                    pdf.setFont("helvetica", "bold");
+                    pdf.text("Item", margin, y);
+                    pdf.text("Qty", center, y, {align: "center"});
+                    pdf.text("Price", pageWidth - margin, y, { align: "right" });
+                    y += 6;
+
+                    pdf.setFont("helvetica", "normal");
+                    const itemText = `${orderData.itemName}`;
+                    const priceText = document.getElementById('total-price').textContent;
+                    pdf.text(itemText, margin, y);
+                    pdf.text(String(orderData.quantity), center, y, {align: "center"});
+                    pdf.text(priceText, pageWidth - margin, y, { align: "right" });
+                    y += 10;
+                    
+                    addDashedLine();
+
+                    pdf.setFont("helvetica", "bold");
+                    pdf.setFontSize(10);
+                    addLine("TOTAL", priceText);
+                    y += 5;
+                    
+                    pdf.setFont("helvetica", "normal");
+                    pdf.setFontSize(8);
+                    addLine("Payment Method:", orderData.modeOfPayment || "N/A");
+                    addLine("Status:", orderData.status.charAt(0).toUpperCase() + orderData.status.slice(1));
+                    y += 8;
+
+                    pdf.text("Thank you for your business!", center, y, { align: "center" });
+
+                    pdf.save(`PrintEase-Receipt-${orderData.orderId.slice(-6)}.pdf`);
+                    
                     downloadBtnSpan.textContent = 'Downloaded!';
-                } catch (err) {
-                    console.error("Image generation failed:", err);
-                    downloadBtnSpan.textContent = 'Download Failed';
-                } finally {
-                    // ALWAYS show the button's container again
-                    actionsDiv.style.display = 'block';
-
                     setTimeout(() => {
                         downloadButton.disabled = false;
                         downloadBtnSpan.textContent = 'Download Receipt';
                     }, 2000);
+
+                } catch (err) {
+                    console.error("PDF generation failed:", err);
+                    downloadBtnSpan.textContent = 'Download Failed';
+                     setTimeout(() => {
+                        downloadButton.disabled = false;
+                        downloadBtnSpan.textContent = 'Download Receipt';
+                    }, 3000);
                 }
             });
-
 
             // --- Main Data Fetching Logic ---
             const params = new URLSearchParams(window.location.search);
