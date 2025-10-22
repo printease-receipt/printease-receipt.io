@@ -121,13 +121,13 @@
     .download-btn:hover { background-color: #1d4ed8; }
     .download-btn:disabled { background-color: #374151; cursor: not-allowed; }
 
-    /* --- UPDATED PAPER RECEIPT STYLE (850x1250 portrait) --- */
+    /* --- PAPER RECEIPT (800x1300) --- */
     #paper-receipt {
       position: absolute;
       left: -9999px;
       top: auto;
-      width: 850px;
-      height: 1250px;
+      width: 800px;
+      height: 1300px;
       background: #fff;
       color: #000;
       padding: 40px 50px;
@@ -205,7 +205,7 @@
     <div id="error" style="display: none;"></div>
   </div>
 
-  <!-- Hidden Receipt -->
+  <!-- Hidden Paper Receipt -->
   <div id="paper-receipt" aria-hidden="true">
     <div class="paper-header">
       <h2>PrintEase</h2>
@@ -213,12 +213,8 @@
       <p id="paper-date"></p>
     </div>
     <div class="paper-line"></div>
-    <div class="paper-row">
-      <span>Order ID:</span><span id="paper-order-id"></span>
-    </div>
-    <div class="paper-row">
-      <span>Payment Method:</span><span id="paper-payment-mode"></span>
-    </div>
+    <div class="paper-row"><span>Order ID:</span><span id="paper-order-id"></span></div>
+    <div class="paper-row"><span>Payment Method:</span><span id="paper-payment-mode"></span></div>
     <div class="paper-line"></div>
     <div class="paper-row"><strong>Item</strong><strong>Amount</strong></div>
     <div class="paper-row"><span id="paper-item-name"></span><span id="paper-item-total"></span></div>
@@ -237,27 +233,16 @@
       const loadingEl = document.getElementById('loading');
       const errorEl = document.getElementById('error');
 
-      // SAMPLE STATIC DATA (Replace this section with your fetch if needed)
+      // STATIC DATA (fixed timestamp)
       const data = {
         orderId: "96EFCA",
         itemName: "Mousepad",
         quantity: 5,
         totalPrice: 400,
         modeOfPayment: "GCash",
-        status: "Completed"
+        status: "Completed",
+        orderDate: "October 20, 2025 - 2:34 PM" // fixed printed time
       };
-
-      // Real-time local time for both screen & paper
-      const now = new Date();
-      const realTimeDate = now.toLocaleString("en-US", {
-        timeZone: "Asia/Manila",
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true
-      });
 
       // Populate On-screen receipt
       document.getElementById('order-id').textContent = '#' + data.orderId;
@@ -265,14 +250,14 @@
       document.getElementById('quantity').textContent = data.quantity;
       document.getElementById('status').textContent = data.status;
       document.getElementById('payment-mode').textContent = data.modeOfPayment;
-      document.getElementById('order-date').textContent = realTimeDate;
+      document.getElementById('order-date').textContent = data.orderDate;
       document.getElementById('total-price').textContent =
         new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(data.totalPrice);
 
       // Populate paper receipt
       document.getElementById('paper-order-id').textContent = '#' + data.orderId;
       document.getElementById('paper-payment-mode').textContent = data.modeOfPayment;
-      document.getElementById('paper-date').textContent = realTimeDate;
+      document.getElementById('paper-date').textContent = data.orderDate;
       document.getElementById('paper-item-name').textContent = data.itemName;
       document.getElementById('paper-item-total').textContent =
         new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(data.totalPrice);
@@ -296,8 +281,8 @@
 
         try {
           const canvas = await html2canvas(receipt, {
-            width: 850,
-            height: 1250,
+            width: 800,
+            height: 1300,
             scale: 2
           });
           const image = canvas.toDataURL('image/png');
