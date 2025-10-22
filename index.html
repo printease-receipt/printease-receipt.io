@@ -230,7 +230,7 @@
             <span class="paper-row-right" id="paper-total-price"></span>
         </div>
         <div class="paper-footer">
-            <p>Thank you for your business!</p>
+            <p>Thank you for choosing JC Designs and Prints!</p>
         </div>
     </div>
 
@@ -297,11 +297,21 @@
             .then(data => {
                 orderData = data; 
                 const formattedPrice = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(data.totalPrice);
-                let formattedDate = 'N/A';
+                
+                // --- REVISED DATE FORMATTING ---
+                let onScreenDate = 'N/A';
+                let paperDate = 'N/A';
                 if (data.orderDate) {
                     try {
-                        formattedDate = new Date(data.orderDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-                    } catch (e) { formattedDate = data.orderDate.split('T')[0]; }
+                        const dateObj = new Date(data.orderDate);
+                        // For on-screen display
+                        onScreenDate = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                        // For paper receipt (Philippines Time)
+                        paperDate = dateObj.toLocaleString('en-US', { timeZone: 'Asia/Manila' });
+                    } catch (e) { 
+                        onScreenDate = data.orderDate.split('T')[0];
+                        paperDate = data.orderDate.split('T')[0];
+                    }
                 }
                 
                 // --- Populate VISIBLE receipt ---
@@ -311,11 +321,11 @@
                 document.getElementById('status').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
                 document.getElementById('payment-mode').textContent = data.modeOfPayment || 'N/A';
                 document.getElementById('total-price').textContent = formattedPrice;
-                document.getElementById('order-date').textContent = formattedDate;
+                document.getElementById('order-date').textContent = onScreenDate;
 
                 // --- Populate HIDDEN paper receipt ---
                 document.getElementById('paper-order-id').textContent = '#' + data.orderId.slice(-6).toUpperCase();
-                document.getElementById('paper-date').textContent = new Date(data.orderDate).toLocaleString('en-US');
+                document.getElementById('paper-date').textContent = paperDate;
                 document.getElementById('paper-payment-mode').textContent = data.modeOfPayment || 'N/A';
                 document.getElementById('paper-item-name').textContent = data.itemName;
                 document.getElementById('paper-item-total').textContent = formattedPrice;
